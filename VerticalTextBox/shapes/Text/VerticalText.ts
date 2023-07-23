@@ -4,6 +4,7 @@ import { hasStyleChanged } from '../../util/misc/textStyles';
 import { StylePropertiesType } from './constants';
 import { cache } from '../../cache';
 import { createCanvasElement } from '../../util/misc/dom';
+import { graphemeSplit } from '../../util/lang_string';
 
 const JUSTIFY = "justify"
 /**
@@ -66,23 +67,6 @@ export class VerticalText extends fabric.Text {
         super(text, options)
     }
 
-    // // overrides
-    // setPathInfo() {
-    //     // @ts-ignore
-    //     super.setPathInfo()
-    // }
-
-    // _splitText() {
-    //   const newLines = this._splitTextIntoLines(this.text);
-    //   this.textLines = newLines.lines;
-    //   this._textLines = newLines.graphemeLines;
-    //   this._unwrappedTextLines = newLines._unwrappedLines;
-    //   this._text = newLines.graphemeText;
-    //   return newLines;
-    // }
-
-
-
     // override
     initDimensions(): void {
         this._splitText()
@@ -94,7 +78,7 @@ export class VerticalText extends fabric.Text {
         const height = this.calcTextHeight()
         this.height = height || this.cursorHeight || this.MIN_TEXT_HEIGHT
 
-        console.log({height, thisHeight:this.height, thisText: this.text})
+        console.log({ height, thisHeight: this.height, thisText: this.text })
         const align = this.textAlign
         if (align) {
             if (align.includes(JUSTIFY)) {
@@ -171,8 +155,9 @@ export class VerticalText extends fabric.Text {
         let lineWidth, width = 0
         for (let i = 0, len = this._textLines.length; i < len; i++) {
             lineWidth = this.getWidthOfLine(i)
+            console.log({lineWidth})
             // @ts-ignore
-            width += i === len - 1 ? lineWidth / this.lineHeight : this.lineHeight
+            width += lineWidth / this.lineHeight
         }
         return width
     }
@@ -186,16 +171,16 @@ export class VerticalText extends fabric.Text {
    * @param {Number} top Top position of text
    * @param {Number} lineIndex Index of a line in a text
    */
-  _renderVTextLine(
-    method: 'fillText' | 'strokeText',
-    ctx: CanvasRenderingContext2D,
-    line: string[],
-    left: number,
-    top: number,
-    lineIndex: number
-  ) {
-    this._renderChars(method, ctx, line.join(''), left, top, lineIndex);
-  }
+    _renderVTextLine(
+        method: 'fillText' | 'strokeText',
+        ctx: CanvasRenderingContext2D,
+        line: string[],
+        left: number,
+        top: number,
+        lineIndex: number
+    ) {
+        this._renderChars(method, ctx, line.join(''), left, top, lineIndex);
+    }
 
     /**
    * measure and return the width of a single character.
@@ -255,7 +240,9 @@ export class VerticalText extends fabric.Text {
             if (width === undefined || height === undefined) {
                 const m = ctx.measureText(_char)
                 kernedWidth = width = m.width;
-                height = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent
+                // height = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent
+                height = m.actualBoundingBoxAscent - m.actualBoundingBoxDescent /** space */
+                console.log({height})
                 // @ts-ignore
                 fontCache[_char] = width;
             }
@@ -285,19 +272,19 @@ export class VerticalText extends fabric.Text {
    * @private
    * @param {CanvasRenderingContext2D} ctx Context to render on
    */
-  _render(ctx: CanvasRenderingContext2D) {
-    this._setTextStyles(ctx);
-    // this._renderTextLinesBackground(ctx);
-    // this._renderTextDecoration(ctx, 'underline');
-    this._renderText(ctx);
-    // this._renderTextDecoration(ctx, 'overline');
-    // this._renderTextDecoration(ctx, 'linethrough');
-  }
+    _render(ctx: CanvasRenderingContext2D) {
+        this._setTextStyles(ctx);
+        // this._renderTextLinesBackground(ctx);
+        // this._renderTextDecoration(ctx, 'underline');
+        this._renderText(ctx);
+        // this._renderTextDecoration(ctx, 'overline');
+        // this._renderTextDecoration(ctx, 'linethrough');
+    }
 
     measureVLine(lineIndex: number) {
         const lineInfo = this._measureLine(lineIndex);
         if (this.charSpacing !== 0) {
-            lineInfo.height -= this._getHeightOfCharSpacing();
+            lineInfo.height += this._getHeightOfCharSpacing();
         }
         if (lineInfo.height < 0) {
             lineInfo.height = 0;
@@ -370,9 +357,9 @@ export class VerticalText extends fabric.Text {
             charSpacing;
 
         if (this.charSpacing !== 0) {
-            charSpacing = this._getWidthOfCharSpacing();
-            width += charSpacing;
-            kernedWidth += charSpacing;
+            // charSpacing = this._getWidthOfCharSpacing();
+            // width += charSpacing;
+            height += this._getHeightOfCharSpacing();
         }
 
         const box: GraphemeBBox = {
@@ -397,13 +384,13 @@ export class VerticalText extends fabric.Text {
    */
     calcTextHeight(): number {
         let maxHeight = this.getLineHeight(0);
-        console.log({maxHeight})
+        console.log({ maxHeight })
         for (let i = 1, len = this._textLines.length; i < len; i++) {
             const currentLineHeight = this.getLineHeight(i);
             if (currentLineHeight > maxHeight) {
                 maxHeight = currentLineHeight
             }
-            console.log({maxHeight})
+            console.log({ maxHeight })
         }
         return maxHeight
     }
@@ -509,7 +496,7 @@ export class VerticalText extends fabric.Text {
             ctx.textAlign = isLtr ? LEFT : RIGHT;
         }
         // top -= (lineHeight * this._fontSizeFraction) / this.lineHeight;
-
+        
         if (shortCut) {
             // render all the line in one pass without checking
             // drawingLeft = isLtr ? left : left - this.getLineWidth(lineIndex);
@@ -560,7 +547,8 @@ export class VerticalText extends fabric.Text {
 
                 charsToRender = '';
                 actualStyle = nextStyle;
-                left += sign * boxWidth;
+                // left += sign * boxWidth;
+                top += charBox.height
                 boxWidth = 0;
             }
         }
@@ -660,9 +648,9 @@ export class VerticalText extends fabric.Text {
                 const bound = this.__charBounds![lineIndex][i]
                 t += bound.height!
                 ctx.fillText(c, left - bound.width, t)
-
-                
             })
+
+            
         }
 
         if (shouldStroke) {
@@ -673,6 +661,8 @@ export class VerticalText extends fabric.Text {
                 left, // - strokeOffsets.offsetX,
                 top, // - strokeOffsets.offsetY
             );
+
+            
         }
 
         ctx.restore();
@@ -682,13 +672,13 @@ export class VerticalText extends fabric.Text {
         return 0
     }
 
+    // 指定された行の高さを計算して保管しつつ返却します
     getLineHeight(lineIndex: number): number {
         if (this.__lineHeights[lineIndex] !== undefined) {
             return this.__lineHeights[lineIndex]
         }
 
         const { height } = this.measureVLine(lineIndex)
-        console.log({height})
         this.__lineHeights[lineIndex] = height
         return height
     }
@@ -708,6 +698,10 @@ export class VerticalText extends fabric.Text {
             // @ts-ignore
             return (this.fontSize * this.charSpacing) / 1000
         }
+        return 0
+    }
+
+    _getWidthOfCharSpacing(): number {
         return 0
     }
 
@@ -748,5 +742,41 @@ export class VerticalText extends fabric.Text {
             parsedFontFamily,
         ].join(' ');
     }
+
+    /**
+   * Override this method to customize grapheme splitting
+   * @todo the util `graphemeSplit` needs to be injectable in some way.
+   * is more comfortable to inject the correct util rather than having to override text
+   * in the middle of the prototype chain
+   * @param {string} value
+   * @returns {string[]} array of graphemes
+   */
+  graphemeSplit(value: string): string[] {
+    return graphemeSplit(value);
+  }
+
+    /**
+   * Returns the text as an array of lines.
+   * @param {String} text text to split
+   * @returns  Lines in the text
+   */
+  _splitTextIntoLines(text: string) {
+    const lines = text.split(this._reNewline),
+      newLines = new Array<string[]>(lines.length),
+      newLine = ['\n'];
+      console.log({lines})
+    let newText: string[] = [];
+    for (let i = 0; i < lines.length; i++) {
+      newLines[i] = this.graphemeSplit(lines[i]);
+      newText = newText.concat(newLines[i], newLine);
+    }
+    newText.pop();
+    return {
+      _unwrappedLines: newLines,
+      lines: lines,
+      graphemeText: newText,
+      graphemeLines: newLines,
+    };
+  }
 
 }
