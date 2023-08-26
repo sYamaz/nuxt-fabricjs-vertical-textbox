@@ -1,5 +1,7 @@
 # nuxt + fabricjsで縦書きテキストボックスを作りたい
 
+![img](vtext.png)
+
 まず、Textboxに関するクラスの関係。参考までに記したLineやCircleなどのオブジェクトに対して明らかに複雑である。
 
 ```mermaid
